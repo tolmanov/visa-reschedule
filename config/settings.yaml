@@ -1,8 +1,40 @@
 dynaconf_merge: true
 app_name: webforms
+logging:
+  version: 1
+  disable_existing_loggers: true
+  formatters:
+    simple:
+      format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  handlers:
+    console:
+      class: logging.StreamHandler
+      level: INFO
+      formatter: simple
+      stream: ext://sys.stdout
+    telegram:
+      class: telegram_handler.TelegramHandler
+      formatter: simple
+      level: INFO
+    file:
+      class: logging.FileHandler
+      level: DEBUG
+      filename: visa.log
+  loggers:
+    webforms:
+      level: DEBUG
+      handlers:
+        - console
+        - telegram
+        - file
+      propagate: yes
+    root:
+      level: DEBUG
+      handlers: [ console,file ]
 us_visa:
   schedule: 39906070
   country_code: en-gb
   facility_id: 17  # London
   scheduled_date: "2022-10-04"
+
 

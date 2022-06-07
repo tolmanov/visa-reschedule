@@ -4,6 +4,7 @@ import time
 import json
 import random
 from datetime import datetime
+from logging.config import dictConfig
 
 import requests
 from webforms import settings
@@ -38,8 +39,8 @@ options.add_argument("--window-size=1200,900")
 options.add_argument('enable-logging')
 driver = webdriver.Chrome(options=options)
 
-logging.basicConfig(level=logging.INFO, filename="visa.log", filemode="a+",
-                    format="%(asctime)-15s %(levelname)-8s %(message)s")
+dictConfig(settings.logging)
+logger = logging.getLogger(settings.app_name)  # TODO: Figure out how to do via __name__
 
 
 def login():
@@ -50,13 +51,13 @@ def login():
     a.click()
     time.sleep(1)
 
-    logging.info("start sign")
+    logger.debug("start sign")
     href = driver.find_element(By.XPATH, value='//*[@id="header"]/nav/div[2]/div[1]/ul/li[3]/a')
     href.click()
     time.sleep(1)
     WebDriverWait(driver, 60).until(EC.presence_of_element_located((By.NAME, "commit")))
 
-    logging.info("click bounce")
+    logger.debug("click bounce")
     a = driver.find_element(By.XPATH, value='//a[@class="down-arrow bounce"]')
     a.click()
     time.sleep(1)
@@ -65,31 +66,31 @@ def login():
 
 
 def do_login_action():
-    logging.info("input email")
+    logger.debug("input email")
     user = driver.find_element(By.ID, value='user_email')
     user.send_keys(USERNAME)
     time.sleep(random.randint(1, 3))
 
-    logging.info("input pwd")
+    logger.debug("input pwd")
     pw = driver.find_element(By.ID, value='user_password')
     pw.send_keys(PASSWORD)
     time.sleep(random.randint(1, 3))
 
-    logging.info("click privacy")
+    logger.debug("click privacy")
     box = driver.find_element(By.CLASS_NAME, value='icheckbox')
     box.click()
     time.sleep(random.randint(1, 3))
 
-    logging.info("commit")
+    logger.debug("commit")
     btn = driver.find_element(By.NAME, value='commit')
     btn.click()
     time.sleep(random.randint(1, 3))
 
     try:
         WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.XPATH, "//a[contains(text(),'Continue')]")))
-        logging.info("Login successfully!")
+        logger.info("Login successfully!")
     except TimeoutError:
-        logging.warning("Login failed!")
+        logger.warning("Login failed!")
         login()
 
 
@@ -110,14 +111,14 @@ def get_time(date):
     content = driver.find_element(By.TAG_NAME, value='pre').text
     data = json.loads(content)
     time = data.get("available_times")[-1]
-    logging.info("Get time successfully!")
+    logger.debug("Get time successfully!")
     return time
 
 
 # BUGGY
 def reschedule(date):
     global EXIT
-    logging.info("Start Reschedule")
+    logger.info("Start Reschedule")
 
     time = get_time(date)
     driver.get(APPOINTMENT_URL)
@@ -142,14 +143,14 @@ def reschedule(date):
 
     r = requests.post(APPOINTMENT_URL, headers=headers, data=data)
     if (r.text.find('Successfully Scheduled') != -1):
-        logging.info("Successfully Rescheduled")
+        logger.debug("Successfully Rescheduled")
         EXIT = True
     else:
-        logging.warning("ReScheduled Fail")
-        logging.warning("POST REQUEST:\n")
-        logging.warning(headers)
-        logging.warning(data)
-        logging.warning("")
+        logger.warning("ReScheduled Fail")
+        logger.warning("POST REQUEST:\n")
+        logger.warning(headers)
+        logger.warning(data)
+        logger.warning("")
 
 
 def is_logined():
@@ -161,8 +162,8 @@ def is_logined():
 
 def print_date(dates):
     for d in dates:
-        logging.info("%s \t business_day: %s" % (d.get('date'), d.get('business_day')))
-    logging.info("\n")
+        logger.debug("%s \t business_day: %s" % (d.get('date'), d.get('business_day')))
+    logger.debug("\n")
 
 
 last_seen = None
@@ -190,8 +191,8 @@ if __name__ == "__main__":
         if retry_count > 6:
             break
         try:
-            logging.info(datetime.today())
-            logging.info("------------------")
+            logger.debug(datetime.today())
+            logger.debug("------------------")
 
             dates = get_date()[:5]
             print_date(dates)
