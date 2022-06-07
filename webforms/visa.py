@@ -1,4 +1,4 @@
-# Blurrantly scrapped from https://gist.github.com/Svision/04202d93fb32d14f00ac746879820722
+# Blatantly scrapped from https://gist.github.com/Svision/04202d93fb32d14f00ac746879820722
 import logging
 import time
 import json
@@ -8,11 +8,9 @@ from datetime import datetime
 import requests
 from webforms import settings
 from selenium import webdriver
-from selenium.webdriver.support import expected_conditions as EC 
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
-# from webdriver_manager.chrome import ChromeDriverManager
 
 details = settings.us_visa
 
@@ -22,11 +20,11 @@ SCHEDULE = details.schedule
 COUNTRY_CODE = details.country_code  # en-ca for Canada-English
 FACILITY_ID = details.facility_id  # 94 for Toronto (others please use F12 to check)
 
-
 MY_SCHEDULE_DATE = details.scheduled_date  # 2022-05-16 WARNING: DON'T CHOOSE DATE LATER THAN ACTUAL SCHEDULED
-MY_CONDITION = lambda month, day: int(month) <= 8  # MY_CONDITION = lambda month, day: int(month) == 11 and int(day) >= 5
+MY_CONDITION = lambda month, day: int(
+    month) <= 8  # MY_CONDITION = lambda month, day: int(month) == 11 and int(day) >= 5
 
-SLEEP_TIME = 60   # recheck time interval
+SLEEP_TIME = 60  # recheck time interval
 
 DATE_URL = f"https://ais.usvisa-info.com/{COUNTRY_CODE}/niv/schedule/{SCHEDULE}/appointment/days/{FACILITY_ID}.json?appointments[expedite]=false"
 TIME_URL = f"https://ais.usvisa-info.com/{COUNTRY_CODE}/niv/schedule/{SCHEDULE}/appointment/times/{FACILITY_ID}.json?date=%%s&appointments[expedite]=false"
@@ -39,7 +37,9 @@ options.add_argument("--disable-gpu")
 options.add_argument("--window-size=1200,900")
 options.add_argument('enable-logging')
 driver = webdriver.Chrome(options=options)
-logging.basicConfig(level=logging.INFO, filename="visa.log", filemode="a+", format="%(asctime)-15s %(levelname)-8s %(message)s")
+
+logging.basicConfig(level=logging.INFO, filename="visa.log", filemode="a+",
+                    format="%(asctime)-15s %(levelname)-8s %(message)s")
 
 
 def login():
@@ -72,12 +72,12 @@ def do_login_action():
 
     logging.info("input pwd")
     pw = driver.find_element(By.ID, value='user_password')
-    pw.send_keys(PASSWORD) 
+    pw.send_keys(PASSWORD)
     time.sleep(random.randint(1, 3))
 
     logging.info("click privacy")
     box = driver.find_element(By.CLASS_NAME, value='icheckbox')
-    box .click()
+    box.click()
     time.sleep(random.randint(1, 3))
 
     logging.info("commit")
@@ -126,7 +126,9 @@ def reschedule(date):
         "utf8": driver.find_element(By.NAME, value='utf8').get_attribute('value'),
         "authenticity_token": driver.find_element(By.NAME, value='authenticity_token').get_attribute('value'),
         "confirmed_limit_message": driver.find_element(By.NAME, value='confirmed_limit_message').get_attribute('value'),
-        "use_consulate_appointment_capacity": driver.find_element(By.NAME, value='use_consulate_appointment_capacity').get_attribute('value'),
+        "use_consulate_appointment_capacity": driver.find_element(By.NAME,
+                                                                  value='use_consulate_appointment_capacity').get_attribute(
+            'value'),
         "appointments[consulate_appointment][facility_id]": FACILITY_ID,
         "appointments[consulate_appointment][date]": date,
         "appointments[consulate_appointment][time]": time,
@@ -137,9 +139,9 @@ def reschedule(date):
         "Referer": APPOINTMENT_URL,
         "Cookie": "_yatri_session=" + driver.get_cookie("_yatri_session")["value"]
     }
-    
+
     r = requests.post(APPOINTMENT_URL, headers=headers, data=data)
-    if(r.text.find('Successfully Scheduled') != -1):
+    if (r.text.find('Successfully Scheduled') != -1):
         logging.info("Successfully Rescheduled")
         EXIT = True
     else:
@@ -152,18 +154,20 @@ def reschedule(date):
 
 def is_logined():
     content = driver.page_source
-    if(content.find("error") != -1):
+    if (content.find("error") != -1):
         return False
     return True
 
 
 def print_date(dates):
     for d in dates:
-        logging.info("%s \t business_day: %s" %(d.get('date'), d.get('business_day')))
+        logging.info("%s \t business_day: %s" % (d.get('date'), d.get('business_day')))
     logging.info("\n")
 
 
 last_seen = None
+
+
 def get_available_date(dates):
     global last_seen
 
@@ -174,7 +178,7 @@ def get_available_date(dates):
         date = d.get('date')
         if is_earlier(date) and date != last_seen:
             _, month, day = date.split('-')
-            if(MY_CONDITION(month, day)):
+            if (MY_CONDITION(month, day)):
                 last_seen = date
                 return date
 
@@ -195,10 +199,10 @@ if __name__ == "__main__":
             if date:
                 reschedule(date)
 
-            if(EXIT):
+            if (EXIT):
                 break
 
             time.sleep(SLEEP_TIME)
         except:
             retry_count += 1
-            time.sleep(60*5)
+            time.sleep(60 * 5)
