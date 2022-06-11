@@ -9,7 +9,7 @@ logging:
   handlers:
     console:
       class: logging.StreamHandler
-      level: INFO
+      level: DEBUG
       formatter: simple
       stream: ext://sys.stdout
     telegram:
@@ -24,10 +24,10 @@ logging:
     webforms:
       level: DEBUG
       handlers:
-        - console
+#        - console
         - telegram
         - file
-      propagate: yes
+      propagate: no
     root:
       level: DEBUG
       handlers: [ console,file ]
@@ -35,6 +35,9 @@ us_visa:
   schedule: 39906070
   country_code: en-gb
   facility_id: 17  # London
-  scheduled_date: "2022-10-04"
+  scheduled_date: 2022-10-04
+  book_date: 2022-08-31  # Before this date we will book
+  days_notify: 3  # timedelta for the days to notify
+
 
 

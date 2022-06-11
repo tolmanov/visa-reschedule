@@ -3,7 +3,7 @@ import logging
 import time
 import json
 import random
-from datetime import datetime
+from datetime import datetime, timedelta, date
 from logging.config import dictConfig
 
 import requests
@@ -21,9 +21,12 @@ SCHEDULE = details.schedule
 COUNTRY_CODE = details.country_code  # en-ca for Canada-English
 FACILITY_ID = details.facility_id  # 94 for Toronto (others please use F12 to check)
 
-MY_SCHEDULE_DATE = details.scheduled_date  # 2022-05-16 WARNING: DON'T CHOOSE DATE LATER THAN ACTUAL SCHEDULED
-MY_CONDITION = lambda month, day: int(
-    month) <= 8  # MY_CONDITION = lambda month, day: int(month) == 11 and int(day) >= 5
+DATE_FMT = "%Y-%m-%d"
+# 2022-05-16 WARNING: DON'T CHOOSE DATE LATER THAN ACTUAL SCHEDULED
+MY_SCHEDULE_DATE = details.scheduled_date
+# MY_CONDITION = lambda month, day: int(month) == 11 and int(day) >= 5
+BOOK_CONDITION = lambda dt: dt < details.book_date
+NOTIFY_CONDITION = lambda dt: dt < datetime.today().date() + timedelta(days=details.days_notify)
 
 SLEEP_TIME = 60  # recheck time interval
 
@@ -94,33 +97,33 @@ def do_login_action():
         login()
 
 
-def get_date():
+def get_date():  #  -> List[date]:
     driver.get(DATE_URL)
     if not is_logined():
         login()
         return get_date()
     else:
         content = driver.find_element(By.TAG_NAME, value='pre').text
-        date = json.loads(content)
-        return date
+        content_obj = json.loads(content)
+        return content_obj
 
 
-def get_time(date):
-    time_url = TIME_URL % date
+def get_time(dt: date) -> str:
+    time_url = TIME_URL % dt.strftime(DATE_FMT)
     driver.get(time_url)
     content = driver.find_element(By.TAG_NAME, value='pre').text
     data = json.loads(content)
-    time = data.get("available_times")[-1]
+    time_str = data.get("available_times")[-1]
     logger.debug("Get time successfully!")
-    return time
+    return time_str
 
 
 # BUGGY
-def reschedule(date):
+def reschedule(dt: date):
     global EXIT
     logger.info("Start Reschedule")
 
-    time = get_time(date)
+    time_str = get_time(dt)
     driver.get(APPOINTMENT_URL)
 
     data = {
@@ -131,8 +134,8 @@ def reschedule(date):
                                                                   value='use_consulate_appointment_capacity').get_attribute(
             'value'),
         "appointments[consulate_appointment][facility_id]": FACILITY_ID,
-        "appointments[consulate_appointment][date]": date,
-        "appointments[consulate_appointment][time]": time,
+        "appointments[consulate_appointment][date]": dt,
+        "appointments[consulate_appointment][time]": time_str,
     }
 
     headers = {
@@ -169,22 +172,23 @@ def print_date(dates):
 last_seen = None
 
 
-def get_available_date(dates):
+def get_available_date(dates) -> date:
     global last_seen
 
-    def is_earlier(date):
-        return datetime.strptime(MY_SCHEDULE_DATE, "%Y-%m-%d") > datetime.strptime(date, "%Y-%m-%d")
+    def is_earlier(dt: date) -> bool:
+        return MY_SCHEDULE_DATE > dt
 
     for d in dates:
-        date = d.get('date')
-        if is_earlier(date) and date != last_seen:
-            _, month, day = date.split('-')
-            if (MY_CONDITION(month, day)):
-                last_seen = date
-                return date
+        dt = datetime.strptime(d.get('date'), DATE_FMT).date()
+        if is_earlier(dt) and dt != last_seen:
+            if NOTIFY_CONDITION(dt):
+                logger.warning(f"Available date: {dt} is too close. Consider booking manually.")
+            elif BOOK_CONDITION(dt):
+                last_seen = dt
+                return dt
 
 
-if __name__ == "__main__":
+def main():
     login()
     retry_count = 0
     while 1:
@@ -196,9 +200,9 @@ if __name__ == "__main__":
 
             dates = get_date()[:5]
             print_date(dates)
-            date = get_available_date(dates)
-            if date:
-                reschedule(date)
+            dt = get_available_date(dates)
+            if dt:
+                reschedule(dt)
 
             if (EXIT):
                 break
@@ -207,3 +211,6 @@ if __name__ == "__main__":
         except:
             retry_count += 1
             time.sleep(60 * 5)
+
+if __name__ == "__main__":
+    main()
