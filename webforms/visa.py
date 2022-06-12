@@ -178,6 +178,7 @@ def get_available_date(dates) -> date:
             if NOTIFY_CONDITION(dt):
                 logger.warning(f"Available date: {dt} is too close. Consider booking manually.")
             elif BOOK_CONDITION(dt):
+                logger.info(f"Date available: {dt}. Booking now.")
                 last_seen = dt
                 return dt
 
