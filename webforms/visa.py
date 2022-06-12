@@ -36,17 +36,11 @@ APPOINTMENT_URL = f"https://ais.usvisa-info.com/{COUNTRY_CODE}/niv/schedule/{SCH
 EXIT = False
 
 # driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
-options = webdriver.ChromeOptions()
-options.add_argument("--disable-gpu")
-options.add_argument("--window-size=1200,900")
-options.add_argument('enable-logging')
-driver = webdriver.Chrome(options=options)
-
 dictConfig(settings.logging)
 logger = logging.getLogger(settings.app_name)  # TODO: Figure out how to do via __name__
 
 
-def login():
+def login(driver):
     # Bypass reCAPTCHA
     driver.get(f"https://ais.usvisa-info.com/{COUNTRY_CODE}/niv")
     time.sleep(1)
@@ -65,10 +59,10 @@ def login():
     a.click()
     time.sleep(1)
 
-    do_login_action()
+    do_login_action(driver)
 
 
-def do_login_action():
+def do_login_action(driver):
     logger.debug("input email")
     user = driver.find_element(By.ID, value='user_email')
     user.send_keys(USERNAME)
@@ -97,7 +91,7 @@ def do_login_action():
         login()
 
 
-def get_date():  #  -> List[date]:
+def get_date(driver):  #  -> List[date]:
     driver.get(DATE_URL)
     if not is_logined():
         login()
@@ -108,7 +102,7 @@ def get_date():  #  -> List[date]:
         return content_obj
 
 
-def get_time(dt: date) -> str:
+def get_time(driver, dt: date) -> str:
     time_url = TIME_URL % dt.strftime(DATE_FMT)
     driver.get(time_url)
     content = driver.find_element(By.TAG_NAME, value='pre').text
@@ -119,11 +113,11 @@ def get_time(dt: date) -> str:
 
 
 # BUGGY
-def reschedule(dt: date):
+def reschedule(driver, dt: date):
     global EXIT
     logger.info("Start Reschedule")
 
-    time_str = get_time(dt)
+    time_str = get_time(driver, dt)
     driver.get(APPOINTMENT_URL)
 
     data = {
@@ -189,7 +183,13 @@ def get_available_date(dates) -> date:
 
 
 def main():
-    login()
+    options = webdriver.ChromeOptions()
+    options.add_argument("--disable-gpu")
+    options.add_argument("--window-size=1200,900")
+    options.add_argument('enable-logging')
+    driver = webdriver.Chrome(options=options)
+
+    login(driver)
     retry_count = 0
     while 1:
         if retry_count > 6:
@@ -198,11 +198,11 @@ def main():
             logger.debug(datetime.today())
             logger.debug("------------------")
 
-            dates = get_date()[:5]
+            dates = get_date(driver)[:5]
             print_date(dates)
             dt = get_available_date(dates)
             if dt:
-                reschedule(dt)
+                reschedule(driver, dt)
 
             if (EXIT):
                 break
