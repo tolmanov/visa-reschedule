@@ -6,7 +6,7 @@ import setuptools
 
 
 def get_files_in_folder(folder_name: str) -> List[str]:
-    return [str(Path(folder_name).joinpath(p.name).absolute())
+    return [str(Path(folder_name).joinpath(p.name))
             for p in Path(__file__).parent.joinpath(folder_name).glob('*.*')]
 
 
