@@ -22,6 +22,9 @@ setuptools.setup(name='WebForms',
                      'selenium',
                      'python-telegram-handler',
                  ],
-                 data_files=[('config', get_files_in_folder('config'))],
+                 data_files=[
+                     ('config', get_files_in_folder('config')),
+                     ('etc', get_files_in_folder('etc')),
+                 ],
                  include_package_data=True,
                  )
