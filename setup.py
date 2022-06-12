@@ -1,6 +1,7 @@
 import os
 from distutils.core import setup
 
+
 def package_files(directory):
     paths = []
     for (path, directories, filenames) in os.walk(directory):
@@ -8,7 +9,7 @@ def package_files(directory):
             paths.append(os.path.join('..', path, filename))
     return paths
 
-extra_files = package_files('config')
+
 
 setup(name='WebForms',
       version='1.0',
@@ -22,6 +23,6 @@ setup(name='WebForms',
           'selenium',
           'python-telegram-handler',
       ],
-      package_data={'config': extra_files},
+      data_files=[('config', package_files('config'))],
       include_package_data=True,
       )
