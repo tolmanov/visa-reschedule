@@ -1,1 +1,1 @@
-include config/settings.yaml
+graft config
