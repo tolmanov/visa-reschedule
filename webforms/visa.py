@@ -93,9 +93,9 @@ def do_login_action(driver):
 
 def get_date(driver):  #  -> List[date]:
     driver.get(DATE_URL)
-    if not is_logined():
-        login()
-        return get_date()
+    if not is_logged_in(driver):
+        login(driver)
+        return get_date(driver)
     else:
         content = driver.find_element(By.TAG_NAME, value='pre').text
         content_obj = json.loads(content)
@@ -150,7 +150,7 @@ def reschedule(driver, dt: date):
         logger.warning("")
 
 
-def is_logined():
+def is_logged_in(driver):
     content = driver.page_source
     if (content.find("error") != -1):
         return False
@@ -193,6 +193,7 @@ def main():
     retry_count = 0
     while 1:
         if retry_count > 6:
+            logger.error("Retry count exceeded. Exiting...")
             break
         try:
             logger.debug(datetime.today())
@@ -208,7 +209,8 @@ def main():
                 break
 
             time.sleep(SLEEP_TIME)
-        except:
+        except Exception as e:
+            logger.exception("Exception occurred. Retry...")
             retry_count += 1
             time.sleep(60 * 5)
 
