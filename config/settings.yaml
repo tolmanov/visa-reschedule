@@ -19,7 +19,7 @@ logging:
     file:
       class: logging.FileHandler
       formatter: simple
-      stream: ext://sys.stdout
+#      stream: ext://sys.stdout
       level: DEBUG
       filename: visa.log
   loggers:
