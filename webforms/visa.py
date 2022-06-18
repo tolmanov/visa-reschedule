@@ -7,42 +7,57 @@ from datetime import datetime, timedelta, date
 from logging.config import dictConfig
 
 import requests
+from lazy_object_proxy import Proxy
+
 from webforms import settings
 from selenium import webdriver
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 
-details = settings.us_visa
+from webforms.service.notify import notify
 
-USERNAME = details.email
-PASSWORD = details.password
-SCHEDULE = details.schedule
-COUNTRY_CODE = details.country_code  # en-ca for Canada-English
-FACILITY_ID = details.facility_id  # 94 for Toronto (others please use F12 to check)
 
 DATE_FMT = "%Y-%m-%d"
-# 2022-05-16 WARNING: DON'T CHOOSE DATE LATER THAN ACTUAL SCHEDULED
-MY_SCHEDULE_DATE = details.scheduled_date
 # MY_CONDITION = lambda month, day: int(month) == 11 and int(day) >= 5
-BOOK_CONDITION = lambda dt: dt < details.book_date
-NOTIFY_CONDITION = lambda dt: dt < datetime.today().date() + timedelta(days=details.days_notify)
+
+BOOK_CONDITION = lambda dt: dt < settings.us_visa.book_date  # This is lazy loaded so it won't invoke settings here
+NOTIFY_CONDITION = lambda dt: dt < datetime.today().date() + timedelta(days=settings.us_visa.days_notify)
 
 SLEEP_TIME = 60  # recheck time interval
 
-DATE_URL = f"https://ais.usvisa-info.com/{COUNTRY_CODE}/niv/schedule/{SCHEDULE}/appointment/days/{FACILITY_ID}.json?appointments[expedite]=false"
-TIME_URL = f"https://ais.usvisa-info.com/{COUNTRY_CODE}/niv/schedule/{SCHEDULE}/appointment/times/{FACILITY_ID}.json?date=%s&appointments[expedite]=false"
-APPOINTMENT_URL = f"https://ais.usvisa-info.com/{COUNTRY_CODE}/niv/schedule/{SCHEDULE}/appointment"
+
+class UrlGenerator:
+    def __init__(self):
+        details = settings.us_visa
+        self.schedule = details.schedule
+        self.country_code = details.country_code  # en-ca for Canada-English
+        self.facility_id = details.facility_id  # 94 for Toronto (others please use F12 to check)
+
+    @property
+    def date_url(self):
+        return f"https://ais.usvisa-info.com/{self.country_code}/niv/schedule/{self.schedule}/appointment/days/{self.facility_id}.json?appointments[expedite]=false"
+
+    @property
+    def time_url(self):
+        return f"https://ais.usvisa-info.com/{self.country_code}/niv/schedule/{self.schedule}/appointment/times/{self.facility_id}.json?date=%s&appointments[expedite]=false"
+
+    @property
+    def appointment_url(self):
+        return f"https://ais.usvisa-info.com/{self.country_code}/niv/schedule/{self.schedule}/appointment"
+
+
+url_generator = Proxy(UrlGenerator)
+
 EXIT = False
 
 # driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
-dictConfig(settings.logging)
-logger = logging.getLogger(settings.app_name)  # TODO: Figure out how to do via __name__
+logger = logging.getLogger(__name__)  # TODO: Figure out how to do via __name__
 
 
 def login(driver):
     # Bypass reCAPTCHA
-    driver.get(f"https://ais.usvisa-info.com/{COUNTRY_CODE}/niv")
+    driver.get(f"https://ais.usvisa-info.com/{url_generator.country_code}/niv")
     time.sleep(1)
     a = driver.find_element(By.XPATH, value='//a[@class="down-arrow bounce"]')
     a.click()
@@ -65,12 +80,12 @@ def login(driver):
 def do_login_action(driver):
     logger.debug("input email")
     user = driver.find_element(By.ID, value='user_email')
-    user.send_keys(USERNAME)
+    user.send_keys(settings.us_visa.email)
     time.sleep(random.randint(1, 3))
 
     logger.debug("input pwd")
     pw = driver.find_element(By.ID, value='user_password')
-    pw.send_keys(PASSWORD)
+    pw.send_keys(settings.us_visa.password)
     time.sleep(random.randint(1, 3))
 
     logger.debug("click privacy")
@@ -91,8 +106,8 @@ def do_login_action(driver):
         login()
 
 
-def get_date(driver):  #  -> List[date]:
-    driver.get(DATE_URL)
+def get_date(driver):  # -> List[date]:
+    driver.get(url_generator.date_url)
     if not is_logged_in(driver):
         login(driver)
         return get_date(driver)
@@ -103,7 +118,7 @@ def get_date(driver):  #  -> List[date]:
 
 
 def get_time(driver, dt: date) -> str:
-    time_url = TIME_URL % dt.strftime(DATE_FMT)
+    time_url = url_generator.time_url % dt.strftime(DATE_FMT)
     driver.get(time_url)
     content = driver.find_element(By.TAG_NAME, value='pre').text
     data = json.loads(content)
@@ -118,7 +133,7 @@ def reschedule(driver, dt: date):
     logger.info("Start Reschedule")
 
     time_str = get_time(driver, dt)
-    driver.get(APPOINTMENT_URL)
+    driver.get(url_generator.appointment_url)
 
     data = {
         "utf8": driver.find_element(By.NAME, value='utf8').get_attribute('value'),
@@ -127,18 +142,18 @@ def reschedule(driver, dt: date):
         "use_consulate_appointment_capacity": driver.find_element(By.NAME,
                                                                   value='use_consulate_appointment_capacity').get_attribute(
             'value'),
-        "appointments[consulate_appointment][facility_id]": FACILITY_ID,
+        "appointments[consulate_appointment][facility_id]": url_generator.facility_id,
         "appointments[consulate_appointment][date]": dt,
         "appointments[consulate_appointment][time]": time_str,
     }
 
     headers = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.125 Safari/537.36",
-        "Referer": APPOINTMENT_URL,
+        "Referer": url_generator.appointment_url,
         "Cookie": "_yatri_session=" + driver.get_cookie("_yatri_session")["value"]
     }
 
-    r = requests.post(APPOINTMENT_URL, headers=headers, data=data)
+    r = requests.post(url_generator.appointment_url, headers=headers, data=data)
     if (r.text.find('Successfully Scheduled') != -1):
         logger.debug("Successfully Rescheduled")
         EXIT = True
@@ -170,7 +185,7 @@ def get_available_date(dates) -> date:
     global last_seen
 
     def is_earlier(dt: date) -> bool:
-        return MY_SCHEDULE_DATE > dt
+        return settings.us_visa.scheduled_date > dt
 
     for d in dates:
         dt = datetime.strptime(d.get('date'), DATE_FMT).date()
@@ -214,5 +229,7 @@ def main():
             retry_count += 1
             time.sleep(60 * 5)
 
+
 if __name__ == "__main__":
+    dictConfig(settings.logging)
     main()
