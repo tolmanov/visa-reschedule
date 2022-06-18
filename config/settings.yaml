@@ -1,45 +1,58 @@
 dynaconf_merge: true
-app_name: webforms
-logging:
-  version: 1
-  disable_existing_loggers: true
-  formatters:
-    simple:
-      format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-  handlers:
-    console:
-      class: logging.StreamHandler
-      level: DEBUG
-      formatter: simple
-      stream: ext://sys.stdout
-    telegram:
-      class: telegram_handler.TelegramHandler
-      formatter: simple
-      level: INFO
-    file:
-      class: logging.FileHandler
-      formatter: simple
-#      stream: ext://sys.stdout
-      level: DEBUG
-      filename: visa.log
-  loggers:
-    webforms:
-      level: DEBUG
-      handlers:
-#        - console
-        - telegram
-        - file
-      propagate: no
-    root:
-      level: DEBUG
-      handlers: [ console,file ]
-us_visa:
-  schedule: 39906070
-  country_code: en-gb
-  facility_id: 17  # London
-  scheduled_date: 2022-10-04
-  book_date: 2022-08-31  # Before this date we will book
-  days_notify: 3  # timedelta for the days to notify
-
-
-
+default:
+  app_name: webforms
+  logging:
+    version: 1
+    disable_existing_loggers: true
+    formatters:
+      simple:
+        format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    handlers:
+      console:
+        class: logging.StreamHandler
+        level: DEBUG
+        formatter: simple
+        stream: ext://sys.stdout
+      telegram:
+        class: telegram_handler.TelegramHandler
+        formatter: simple
+        level: INFO
+      file:
+        class: logging.FileHandler
+        formatter: simple
+        #      stream: ext://sys.stdout
+        level: DEBUG
+        filename: visa.log
+  us_visa:
+    days_notify: 3  # timedelta for the days to notify
+    # Should exist in config/.secrets.yaml
+    # email: null
+    # password: null
+    # schedule: null
+    # country_code: null # en-gb for London/Belfast
+    # facility_id: null  # 17 for London
+    # scheduled_date: null # WARNING: DON'T CHOOSE DATE LATER THAN ACTUAL SCHEDULED
+    # book_date: null  # Before this date we will book
+development:
+  logging:
+    loggers:
+      webforms:
+        level: DEBUG
+        handlers:
+          #        - console
+          - telegram
+          - file
+        propagate: no
+      root:
+        level: DEBUG
+        handlers: [ console,file ]
+testing:
+  app_name: webforms_test
+  logging:
+    loggers:
+      webforms:
+        level: DEBUG
+        dynaconf_merge: false
+        handlers:
+          - console
+        propagate: no
