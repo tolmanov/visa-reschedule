@@ -25,7 +25,7 @@ setuptools.setup(name='WebForms',
                  ],
                  data_files=[
                      ('config', get_files_in_folder('config')),
-                     ('etc', get_files_in_folder('etc')),
+                     ('etc', get_files_in_folder('config/etc')),
                  ],
                  include_package_data=True,
                  )
