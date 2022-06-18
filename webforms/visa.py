@@ -175,9 +175,8 @@ def get_available_date(dates) -> date:
     for d in dates:
         dt = datetime.strptime(d.get('date'), DATE_FMT).date()
         if is_earlier(dt) and dt != last_seen:
-            if NOTIFY_CONDITION(dt):
-                logger.warning(f"Available date: {dt} is too close. Consider booking manually.")
-            elif BOOK_CONDITION(dt):
+            notify.send(f"{dt} is available for booking!")
+            if BOOK_CONDITION(dt) and not NOTIFY_CONDITION(dt):
                 logger.info(f"Date available: {dt}. Booking now.")
                 last_seen = dt
                 return dt

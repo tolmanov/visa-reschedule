@@ -17,10 +17,11 @@ setuptools.setup(name='WebForms',
                  author_email='ptolmanov@nes.ru',
                  packages=setuptools.find_packages(),
                  install_requires=[
-                     'dynaconf',
                      'click',
-                     'selenium',
+                     'dynaconf',
+                     'notify-run',
                      'python-telegram-handler',
+                     'selenium',
                  ],
                  data_files=[
                      ('config', get_files_in_folder('config')),
