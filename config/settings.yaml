@@ -36,7 +36,7 @@ default:
 development:
   logging:
     loggers:
-      webforms:
+      webforms.visa:
         level: DEBUG
         handlers:
           #        - console
@@ -50,7 +50,7 @@ testing:
   app_name: webforms_test
   logging:
     loggers:
-      webforms:
+      webforms.visa:
         level: DEBUG
         dynaconf_merge: false
         handlers:

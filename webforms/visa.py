@@ -4,7 +4,6 @@ import time
 import json
 import random
 from datetime import datetime, timedelta, date
-from logging.config import dictConfig
 
 import requests
 from lazy_object_proxy import Proxy
@@ -16,36 +15,15 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 
 from webforms.service.notify import notify
-
+from webforms.url import UrlGenerator
 
 DATE_FMT = "%Y-%m-%d"
-# MY_CONDITION = lambda month, day: int(month) == 11 and int(day) >= 5
 
+# MY_CONDITION = lambda month, day: int(month) == 11 and int(day) >= 5
 BOOK_CONDITION = lambda dt: dt < settings.us_visa.book_date  # This is lazy loaded so it won't invoke settings here
 NOTIFY_CONDITION = lambda dt: dt < datetime.today().date() + timedelta(days=settings.us_visa.days_notify)
 
 SLEEP_TIME = 60  # recheck time interval
-
-
-class UrlGenerator:
-    def __init__(self):
-        details = settings.us_visa
-        self.schedule = details.schedule
-        self.country_code = details.country_code  # en-ca for Canada-English
-        self.facility_id = details.facility_id  # 94 for Toronto (others please use F12 to check)
-
-    @property
-    def date_url(self):
-        return f"https://ais.usvisa-info.com/{self.country_code}/niv/schedule/{self.schedule}/appointment/days/{self.facility_id}.json?appointments[expedite]=false"
-
-    @property
-    def time_url(self):
-        return f"https://ais.usvisa-info.com/{self.country_code}/niv/schedule/{self.schedule}/appointment/times/{self.facility_id}.json?date=%s&appointments[expedite]=false"
-
-    @property
-    def appointment_url(self):
-        return f"https://ais.usvisa-info.com/{self.country_code}/niv/schedule/{self.schedule}/appointment"
-
 
 url_generator = Proxy(UrlGenerator)
 
@@ -100,7 +78,7 @@ def do_login_action(driver):
 
     try:
         WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.XPATH, "//a[contains(text(),'Continue')]")))
-        logger.info("Login successfully!")
+        logger.info("Logged in successfully!")
     except TimeoutError:
         logger.warning("Login failed!")
         login()
@@ -187,14 +165,17 @@ def get_available_date(dates) -> date:
     def is_earlier(dt: date) -> bool:
         return settings.us_visa.scheduled_date > dt
 
+    min_date = None
     for d in dates:
         dt = datetime.strptime(d.get('date'), DATE_FMT).date()
+        min_date = min(dt, min_date or dt)
         if is_earlier(dt) and dt != last_seen:
             notify.send(f"{dt} is available for booking!")
             if BOOK_CONDITION(dt) and not NOTIFY_CONDITION(dt):
                 logger.info(f"Date available: {dt}. Booking now.")
                 last_seen = dt
                 return dt
+    logger.info(f"Earliest available date is {min_date}, Skipping")
 
 
 def main():
@@ -231,5 +212,4 @@ def main():
 
 
 if __name__ == "__main__":
-    dictConfig(settings.logging)
     main()
