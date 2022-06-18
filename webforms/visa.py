@@ -6,6 +6,7 @@ import random
 from datetime import datetime, timedelta, date
 
 import requests
+import schedule
 from lazy_object_proxy import Proxy
 
 from webforms import settings
@@ -17,6 +18,7 @@ from selenium.webdriver.common.by import By
 from webforms.service.notify import notify
 from webforms.url import UrlGenerator
 
+GLOBAL_MIN_DATE = None
 DATE_FMT = "%Y-%m-%d"
 
 # MY_CONDITION = lambda month, day: int(month) == 11 and int(day) >= 5
@@ -161,6 +163,7 @@ last_seen = None
 
 def get_available_date(dates) -> date:
     global last_seen
+    global GLOBAL_MIN_DATE
 
     def is_earlier(dt: date) -> bool:
         return settings.us_visa.scheduled_date > dt
@@ -175,7 +178,10 @@ def get_available_date(dates) -> date:
                 logger.info(f"Date available: {dt}. Booking now.")
                 last_seen = dt
                 return dt
-    logger.info(f"Earliest available date is {min_date}, Skipping")
+    if min_date:
+        if min_date != GLOBAL_MIN_DATE:
+            GLOBAL_MIN_DATE = min_date
+            logger.info(f"Earliest available date is {min_date}, Skipping")
 
 
 def main():
@@ -186,29 +192,19 @@ def main():
     driver = webdriver.Chrome(options=options)
 
     login(driver)
-    retry_count = 0
-    while 1:
-        if retry_count > 6:
-            logger.error("Retry count exceeded. Exiting...")
-            break
-        try:
-            logger.debug(datetime.today())
-            logger.debug("------------------")
 
-            dates = get_date(driver)[:5]
-            print_date(dates)
+    def run_program(_driver):
+        try:
+            dates = get_date(_driver)[:5]
             dt = get_available_date(dates)
             if dt:
-                reschedule(driver, dt)
-
-            if (EXIT):
-                break
-
-            time.sleep(SLEEP_TIME)
+                reschedule(_driver, dt)
         except Exception as e:
             logger.exception("Exception occurred. Retry...")
-            retry_count += 1
-            time.sleep(60 * 5)
+
+    ss = schedule.every(1).minutes.do(lambda: run_program(driver))
+    while True:
+        schedule.run_pending()
 
 
 if __name__ == "__main__":
