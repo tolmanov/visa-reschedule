@@ -1,2 +1,3 @@
 /webforms/visa.log
 config/.secrets.yaml
+/config/settings.local.yaml

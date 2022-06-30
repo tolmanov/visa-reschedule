@@ -4,6 +4,9 @@ default:
   logging:
     version: 1
     disable_existing_loggers: true
+#    filters:
+#      hostname_filter:
+#        class: webfroms.logging.HostnameFilter
     formatters:
       simple:
         format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -36,21 +39,22 @@ default:
 development:
   logging:
     loggers:
-      webforms.visa:
+      webforms:
         level: DEBUG
         handlers:
-          #        - console
+          - console
           - telegram
           - file
         propagate: no
       root:
         level: DEBUG
         handlers: [ console,file ]
+        propagate: no
 testing:
   app_name: webforms_test
   logging:
     loggers:
-      webforms.visa:
+      webforms:
         level: DEBUG
         dynaconf_merge: false
         handlers:

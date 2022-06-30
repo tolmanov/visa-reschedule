@@ -123,7 +123,7 @@ def reschedule(driver, dt: date):
                                                                   value='use_consulate_appointment_capacity').get_attribute(
             'value'),
         "appointments[consulate_appointment][facility_id]": url_generator.facility_id,
-        "appointments[consulate_appointment][date]": dt,
+        "appointments[consulate_appointment][date]": dt.strftime(DATE_FMT),
         "appointments[consulate_appointment][time]": time_str,
     }
 
@@ -192,6 +192,7 @@ def main():
     driver = webdriver.Chrome(options=options)
 
     login(driver)
+
 
     def run_program(_driver):
         try:
