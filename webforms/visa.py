@@ -35,6 +35,10 @@ EXIT = False
 logger = logging.getLogger(__name__)  # TODO: Figure out how to do via __name__
 
 
+class BookingError(Exception):
+    pass
+
+
 def login(driver):
     # Bypass reCAPTCHA
     driver.get(f"https://ais.usvisa-info.com/{url_generator.country_code}/niv")
@@ -102,7 +106,10 @@ def get_time(driver, dt: date) -> str:
     driver.get(time_url)
     content = driver.find_element(By.TAG_NAME, value='pre').text
     data = json.loads(content)
-    time_str = data.get("available_times")[-1]
+    try:
+        time_str = data.get("available_times")[-1]
+    except IndexError:
+        raise BookingError(f"No time retrieved from link {time_url}. ")
     logger.debug("Get time successfully!")
     return time_str
 
@@ -112,7 +119,12 @@ def reschedule(driver, dt: date):
     global EXIT
     logger.info("Start Reschedule")
 
-    time_str = get_time(driver, dt)
+    try:
+        time_str = get_time(driver, dt)
+    except BookingError:
+        logger.exception("Reschedule error")
+        return
+    date_str = dt.strftime(DATE_FMT)
     driver.get(url_generator.appointment_url)
 
     data = {
@@ -123,7 +135,7 @@ def reschedule(driver, dt: date):
                                                                   value='use_consulate_appointment_capacity').get_attribute(
             'value'),
         "appointments[consulate_appointment][facility_id]": url_generator.facility_id,
-        "appointments[consulate_appointment][date]": dt.strftime(DATE_FMT),
+        "appointments[consulate_appointment][date]": date_str,
         "appointments[consulate_appointment][time]": time_str,
     }
 
@@ -193,7 +205,6 @@ def main():
 
     login(driver)
 
-
     def run_program(_driver):
         try:
             dates = get_date(_driver)[:5]
@@ -203,7 +214,7 @@ def main():
         except Exception as e:
             logger.exception("Exception occurred. Retry...")
 
-    ss = schedule.every(1).minutes.do(lambda: run_program(driver))
+    ss = schedule.every(30).seconds.do(lambda: run_program(driver))
     while True:
         schedule.run_pending()
 
